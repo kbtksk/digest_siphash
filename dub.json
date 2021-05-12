@@ -1,10 +1,10 @@
 {
-	"authors": [
-		"yuma"
-	],
-	"copyright": "Copyright © 2021, yuma",
-	"description": "SipHash implementation",
-	"license": "MIT",
-	"name": "digest_siphash",
+    "authors": [
+        "yuma"
+    ],
+    "copyright": "Copyright © 2021, yuma",
+    "description": "SipHash implementation",
+    "license": "MIT",
+    "name": "digest_siphash",
     "targetType": "sourceLibrary"
 }
