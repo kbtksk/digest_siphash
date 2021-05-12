@@ -36,6 +36,33 @@ unittest {
     }
 }
 
+unittest {
+    enum databases = ["vectors_sip", "vectors_hsip"];
+
+    ubyte[16] key;
+    ubyte[64] input;
+
+    for (ubyte i = 0; i < 16; i++) {
+        key[i] = i;
+    }
+
+    static foreach (n, T; AliasSeq!(ulong, uint)) {
+        static foreach (ver; AliasSeq!(8*T.sizeof, 2*8*T.sizeof)) {
+            for (int i = 0; i < 64; i++) {
+                auto hash = SipHash!(T, ver)(key[0..2*T.sizeof]);
+                input[i] = cast(ubyte)i;
+                hash.put(input[0 .. i]);
+                auto r = hash.finish();
+                auto exp = mixin(databases[n] ~ ver.to!string)[i];
+                assert(r == exp,
+                "%s@%s [%(%02x,%)], [%(%02x,%)], %(%016x,%)".format(ver, i, r, exp, hash.key)
+                );
+            }
+        }
+    }
+
+}
+
 
 /// port from  veorq/SipHash/vectors.h
 const ubyte[8][64] vectors_sip64 =

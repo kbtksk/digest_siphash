@@ -128,7 +128,7 @@ template siphash(T, size_t length = 64, size_t cround = 2, size_t dround = 4) {
         }
 
         version(SipHashDebug)
-            writefln("-- prepare (%s%s - 0:%016x 1:%016x) : [%(%02x, %)]", length, Half?" half":"", k0, k1, data);
+            writefln("-- prepare (%s%s - 0:%016x 1:%016x) : [%(%02x, %)]", length, Half?" half":"", k[0], k[1], data);
 
         T m;
         size_t offset = 0;
@@ -165,7 +165,7 @@ template siphash(T, size_t length = 64, size_t cround = 2, size_t dround = 4) {
         version(SipHashDebug) dumpv(v, "-- endup");
         R r;
         r[0] = xor!(T, Half)(v);
-        version(SipHashDebug) writeln(r1);
+        version(SipHashDebug) writeln(r[0]);
         static if (Large) {
             v[1] ^= 0xdd;
             round!(dround, T)(v);
@@ -254,7 +254,7 @@ unittest {
  * Get hash of SipHash with isDigest compatibility.
  */
 struct SipHash(T, size_t length = 64, size_t cround = 2, size_t dround = 4) if (is(T == uint) || is(T == ulong)) {
-    static const ubyte[16] Zero = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    static const ubyte[2 * T.sizeof] Zero = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0][0 .. 2 * T.sizeof];
 
 private:
     static if (is(T == uint)) {
@@ -285,7 +285,7 @@ private:
     }
     else static assert(0);
 
-    const ulong[2] key;
+    public const T[2] key;
     T[4] _value;
     ubyte[T.sizeof] _buf;
     size_t _offset;
@@ -330,7 +330,12 @@ public @trusted:
             this.key[] = readKey!T(key.representation);
         }
         else {
-            this.key = siphash128Of(Zero, key.representation);
+            static if (Half) {
+                this.key = siphash64Of(Zero, key.representation);
+            }
+            else {
+                this.key = siphash128Of(Zero, key.representation);
+            }
         }
         start();
     }
@@ -428,7 +433,7 @@ public @trusted:
         ubyte[VN * T.sizeof] res;
         r = xor!(T, Half)(_value);
         res[0..T.sizeof] = nativeToLittleEndian(r);
-        version(SipHashDebug) writeln(r1);
+        version(SipHashDebug) writeln(r);
         static if (Large) {
             _value[1] ^= 0xdd;
             .round!(dround, T)(_value);
