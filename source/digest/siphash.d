@@ -81,7 +81,7 @@ template siphash(T, size_t length = 64, size_t cround = 2, size_t dround = 4) {
     static if (is(T == ulong)) {
         static assert (length == 64 || length == 128,  "cannot accept " ~ T.stringof ~ " with length = " ~ length.stringof);
         static if (length == 64) {
-            alias R = T;
+            alias R = T[1];
         }
         else {
             alias R = T[2];
@@ -95,7 +95,7 @@ template siphash(T, size_t length = 64, size_t cround = 2, size_t dround = 4) {
     else {
         static assert (length == 32 || length == 64,  "cannot accept length = " ~ T.stringof);
         static if (length == 32) {
-            alias R = T;
+            alias R = T[1];
         }
         else {
             alias R = T[2];
@@ -163,18 +163,15 @@ template siphash(T, size_t length = 64, size_t cround = 2, size_t dround = 4) {
         round!(dround, T)(v);
 
         version(SipHashDebug) dumpv(v, "-- endup");
-        T r1 = xor!(T, Half)(v);
+        R r;
+        r[0] = xor!(T, Half)(v);
         version(SipHashDebug) writeln(r1);
         static if (Large) {
             v[1] ^= 0xdd;
             round!(dround, T)(v);
-
-            T r2 = xor!(T, Half)(v);
-            return [ r1, r2 ];
+            r[1] = xor!(T, Half)(v);
         }
-        else {
-            return r1;
-        }
+        return r;
 
     }
 }
@@ -194,8 +191,8 @@ unittest {
     ubyte[16] key;
     auto r = siphashOf(key, "foobar".representation);
 
-    assert(is(typeof(r) == ulong));
-    assert(r == 0xaac7cb99d530deb);
+    assert(is(typeof(r) == ulong[1]));
+    assert(r[0] == 0xaac7cb99d530deb);
 }
 
 /// ditto
@@ -204,7 +201,7 @@ unittest {
     assert(key.length == 16);
     auto r = siphashOf(key[0..16], "foobar".representation);
 
-    assert(r == 0xf3afaa0fb365996e);
+    assert(r[0] == 0xf3afaa0fb365996e);
 }
 
 /// ditto
@@ -213,7 +210,7 @@ unittest {
     ubyte[] data = repeat(cast(ubyte)0, 64).array;
     auto r = siphashOf(key, data);
 
-    assert(r == 0x4ec86d89f765eab5);
+    assert(r[0] == 0x4ec86d89f765eab5);
 }
 
 /// siphash 2-4-128 (double)
@@ -249,7 +246,7 @@ unittest {
 
 unittest {
     auto r = siphashOf("0123456789ABCDEF".representation[0 .. 16], "Hello, World".representation);
-    assert(r == 0x6252e47fb397fdff);
+    assert(r[0] == 0x6252e47fb397fdff);
 }
 
 
@@ -343,7 +340,7 @@ public @trusted:
         auto hash = SipHash!(ulong)("0123456789ABCDEF");
         hash.put("Hello, World".representation);
         auto r = hash.finish();
-        assert(r[0] == 0x6252e47fb397fdff, "%08x".format(r[0]));
+        assert(r == 0x6252e47fb397fdff.nativeToLittleEndian(), "%(%02x, %)".format(r));
 
         hash.put("Hello, ".representation);
         hash.put("World".representation);
@@ -403,7 +400,7 @@ public @trusted:
     /**
      * Get result and Reset the hash.
      */
-    T[VN] finish() {
+    ubyte[VN * T.sizeof] finish() {
         T m = cast(T)_length << 8*(T.sizeof - ubyte.sizeof);
         if (_offset > 0) {
             size_t o;
@@ -426,17 +423,21 @@ public @trusted:
         version(SipHashDebug) dumpv(_value, "-- dr");
         .round!(dround, T)(_value);
 
-        T[VN] r;
-        r[0] = xor!(T, Half)(_value);
+
+        T r;
+        ubyte[VN * T.sizeof] res;
+        r = xor!(T, Half)(_value);
+        res[0..T.sizeof] = nativeToLittleEndian(r);
         version(SipHashDebug) writeln(r1);
         static if (Large) {
             _value[1] ^= 0xdd;
             .round!(dround, T)(_value);
-            r[1] = xor!(T, Half)(_value);
+            r = xor!(T, Half)(_value);
+            res[T.sizeof..$] = nativeToLittleEndian(r);
         }
 
         this.start();
-        return r;
+        return res;
     }
 }
 
@@ -452,8 +453,9 @@ unittest {
     hash.put("foo".representation);
     hash.put("bar".representation);
     auto r = hash.finish();
-    assert(is(typeof(r) == ulong[1]));
-    assert(r[0] == 0xaac7cb99d530deb, format("%016x", r[0]));
+    assert(is(typeof(r) == ubyte[8]));
+    auto expect = nativeToLittleEndian(0x0aac7cb99d530deb);
+    assert(r == expect, format("%(%02x, %)", r));
 }
 
 
@@ -464,7 +466,8 @@ unittest {
     hash.put("foo".representation);
     hash.put("bar".representation);
 
-    assert(hash.finish()[0] == 0xf3afaa0fb365996e);
+    auto r = hash.finish();
+    assert(r == 0xf3afaa0fb365996e.nativeToLittleEndian);
 }
 
 /// ditto
@@ -472,9 +475,9 @@ unittest{
     auto hash = SipHash!(ulong)();
     hash.start();
     hash.put(repeat(cast(ubyte)0, 64).array);
-    auto r = hash.finish();
 
-    assert(r[0] == 0x4ec86d89f765eab5);
+    auto r = hash.finish();
+    assert(r == 0x4ec86d89f765eab5.nativeToLittleEndian);
 }
 
 /// siphash 2-4-128 (double)
@@ -484,8 +487,8 @@ unittest {
     hash.put("foo".representation);
     hash.put("bar".representation);
     auto r = hash.finish();
-    assert(r[0] == 0x70a9376692334138);
-    assert(r[1] == 0x66a48f012b6a4707);
+    assert(r[0..8] == 0x70a9376692334138.nativeToLittleEndian());
+    assert(r[8..$] == 0x66a48f012b6a4707.nativeToLittleEndian());
 }
 
 /// ditto
@@ -495,8 +498,8 @@ unittest {
     hash.put("foobar".representation);
 
     auto r = hash.finish();
-    assert(r[0] == 0xafb4eae7623b012a);
-    assert(r[1] == 0x3d666d0dc9027b1b);
+    assert(r[0..8] == 0xafb4eae7623b012a.nativeToLittleEndian);
+    assert(r[8..$] == 0x3d666d0dc9027b1b.nativeToLittleEndian);
 }
 
 /// ditto
@@ -506,8 +509,8 @@ unittest {
     hash.put(repeat(cast(ubyte)0, 64).array);
 
     auto r = hash.finish();
-    assert(r[0] == 0xf8bf0de799b3eb9a);
-    assert(r[1] == 0x684386e11ffea028);
+    assert(r[0..8] == 0xf8bf0de799b3eb9a.nativeToLittleEndian);
+    assert(r[8..$] == 0x684386e11ffea028.nativeToLittleEndian);
 }
 
 
