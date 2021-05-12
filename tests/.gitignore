@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/siphash_test_vectors
+siphash_test_vectors.so
+siphash_test_vectors.dylib
+siphash_test_vectors.dll
+siphash_test_vectors.a
+siphash_test_vectors.lib
+siphash_test_vectors-test-*
+*.exe
+*.o
+*.obj
+*.lst

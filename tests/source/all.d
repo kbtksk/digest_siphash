@@ -5,7 +5,7 @@ import digest.siphash;
 
 unittest {
     bool check(size_t ver, T)(T actual, scope const(ubyte)[] expect)
-        if (is(T == uint) || is(T == ulong) || is(T == uint[2]) || is(T == ulong[2]))
+        if (is(T == uint[1]) || is(T == ulong[1]) || is(T == uint[2]) || is(T == ulong[2]))
     {
         static union Value {
             ubyte[T.sizeof] bb;
