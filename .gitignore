@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/digest_siphash
+digest_siphash.so
+digest_siphash.dylib
+digest_siphash.dll
+digest_siphash.a
+digest_siphash.lib
+digest_siphash-test-*
+*.exe
+*.o
+*.obj
+*.lst

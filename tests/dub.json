@@ -1,0 +1,8 @@
+{
+	"authors": [
+		"yuma"
+	],
+	"license": "MIT",
+    "name": "siphash_test_vectors",
+    "importPaths": ["source/", "../source"]
+}
