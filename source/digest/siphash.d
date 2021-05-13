@@ -1,6 +1,6 @@
 // Written in the D Programming Language
 
-module stdx.digest.siphash;
+module digest.siphash;
 
 import std.algorithm;
 import std.traits;
